@@ -59,4 +59,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/invite/create', [JobController::class, 'createInvite']);
     Route::get('/invite/list', [JobController::class, 'getUserInvites']);
     Route::post('/invite/status/{id}', [JobController::class, 'updateInviteStatus']);
+    Route::post('/invite/status/{id}', [JobController::class, 'updateInviteStatus']);
 });

@@ -455,7 +455,42 @@ public function updateInviteStatus(Request $request, $inviteId)
         ], 500);
     }
 }
+public function updateApplicantStatus(Request $request, $id)
+{
+    try {
+        $user = auth()->user();
+       $jobApplication = JobApplication::find($id);
+        if (!$jobApplication) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Job application not found',
+            ], 404);
+        }
 
+        // Validate status input
+        $request->validate([
+            'applied_status' => 'required|in:shortlisted,rejected,hired'
+        ]);
 
+        // Only recruiters can update the status
+        if ($user->role !== 'recruiter') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Only recruiters can update job application status',
+            ], 403);
+        }
 
+        // Recruiter can update to 'shortlisted', 'rejected', or 'hired'
+        $jobApplication->applied_status = $request->applied_status;
+        $jobApplication->save();
+        return $this->json_response('success', 'Update Application Status', 'Job application status updated successfully', 200, $jobApplication);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
+    }
+}
 }

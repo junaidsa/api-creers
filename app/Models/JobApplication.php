@@ -16,7 +16,7 @@ class JobApplication extends Model
 
     public function getAppliedStatusAttribute()
     {
-        return match ($this->is_verified) {
+        return match ($this->applied_status) {
             1 => 'Live',
             2 => 'Closed',
             default => 'Draft',
