@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Invite;
 use App\Models\Language;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
@@ -76,4 +77,5 @@ class UtilityController extends Controller
         }
 
     }
+
 }

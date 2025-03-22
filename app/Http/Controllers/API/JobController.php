@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Invite;
 use App\Models\Job;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -330,25 +331,26 @@ class JobController extends Controller
             }
 
             // Decode skills_ids from string to array
-            $jobSkills = json_decode($job->skills_ids, true);
+            $jobSkills = json_decode($job->skiles_ids, true);
             if (!is_array($jobSkills)) {
                 $jobSkills = [];
             }
 
-            // Get recommended applicants
+            // Get recommended applicants with role check
             $recommendedApplicants = JobApplication::where('job_id', $job->id)
-            ->whereHas('user', function ($query) use ($job, $jobSkills) {
-                $query->where('category_id', $job->category_id)
-                    ->whereNotNull('skiles_ids')
-                    ->where(function ($q) use ($jobSkills) {
-                        foreach ($jobSkills as $skill) {
-                            $q->orWhereJsonContains('skiles_ids', $skill) // JSON format check
-                              ->orWhereRaw("FIND_IN_SET(?, skiles_ids)", [$skill]); // String format check
-                        }
-                    });
-            })
-            ->with(['user'])
-            ->get();
+                ->whereHas('user', function ($query) use ($job, $jobSkills) {
+                    $query->where('role', 'employee') // Ensure the user is an employee
+                        ->where('category_id', $job->category_id) // Match category
+                        ->whereNotNull('skiles_ids')
+                        ->where(function ($q) use ($jobSkills) {
+                            foreach ($jobSkills as $skill) {
+                                $q->orWhereJsonContains('skiles_ids', $skill) // JSON format check
+                                  ->orWhereRaw("FIND_IN_SET(?, skiles_ids)", [$skill]); // String format check
+                            }
+                        });
+                })
+                ->with(['user'])
+                ->get();
 
             return $this->json_response('success', 'Recommended Applicants', 'Filtered applicants retrieved successfully', 200, $recommendedApplicants);
         } catch (\Exception $e) {
@@ -359,6 +361,101 @@ class JobController extends Controller
             ], 500);
         }
     }
+    public function createInvite(Request $request)
+{
+    try {
+        $validatedData = $request->validate([
+            'employee_id' => 'required|exists:users,id',
+            'job_id' => 'required|exists:jobs,id',
+            'status' => 'nullable|in:active,expired,accepted,rejected',
+        ]);
+
+        $validatedData['user_id'] = auth()->id();
+        $validatedData['recruiter_id'] = auth()->id();
+        $invite = Invite::create($validatedData);
+        return $this->json_response('success', 'Create Invite', 'Invite created successfully', 200, $invite);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
+    }
+}
+
+public function getUserInvites()
+{
+    try {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized access',
+            ], 401);
+        }
+        if ($user->role === 'recruiter') {
+            $invites = Invite::where('recruiter_id', $user->id)->get();
+        } elseif ($user->role === 'employee') {
+            $invites = Invite::where('employee_id', $user->id)->get();
+        } else {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Access denied',
+            ], 403);
+        }
+
+        return $this->json_response('success', 'get Invite', 'User invites retrieved successfully', 200, $invites);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
+    }
+}
+
+public function updateInviteStatus(Request $request, $inviteId)
+{
+    try {
+        $user = auth()->user();        // Find the invite
+        $invite = Invite::find($inviteId);
+        if (!$invite) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Invite not found',
+            ], 404);
+        }
+
+        // Allow only employees to change the status
+        if ($user->role !== 'employee') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Only employees can update their invite status',
+            ], 403);
+        }
+
+        // Validate status
+        $request->validate([
+            'status' => 'required|in:accepted,rejected'
+        ]);
+
+        // Update status
+        $invite->status = $request->status;
+        $invite->save();
+
+        return $this->json_response('success', 'Update Invite Status', 'Invite status updated successfully', 200, $invite);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
+    }
+}
+
 
 
 }

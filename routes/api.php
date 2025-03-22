@@ -56,4 +56,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/job/applicant', [JobController::class, 'applicantList']);
     Route::get('/recommended/applicant', [JobController::class, 'recommendedApplicants']);
     Route::get('/subscriptions', [UtilityController::class, 'getsubscriptions']);
+    Route::post('/invite/create', [JobController::class, 'createInvite']);
+    Route::get('/invite/list', [JobController::class, 'getUserInvites']);
+    Route::post('/invite/status/{id}', [JobController::class, 'updateInviteStatus']);
 });
