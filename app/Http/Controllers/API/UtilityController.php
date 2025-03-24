@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Invite;
 use App\Models\Language;
+use App\Models\Order;
 use App\Models\Subscription;
+use App\Models\UserSubscription;
 use Illuminate\Http\Request;
+use Razorpay\Api\Api;
 use Illuminate\Support\Facades\Validator;
 class UtilityController extends Controller
 {
@@ -77,5 +80,38 @@ class UtilityController extends Controller
         }
 
     }
+
+    public function createOrder(Request $request)
+{
+    try {
+        $request->validate([
+            'subscription_id' => 'required|exists:subscriptions,id',
+            'razorpay_order_id' => 'required',
+        ]);
+
+        $subscription = Subscription::findOrFail($request->subscription_id);
+        // Create Razorpay order
+        // $order = $api->order->create([
+        //     'receipt' => 'order_' . uniqid(),
+        //     'amount' => $subscription->price * 100, // Razorpay expects amount in paise
+        //     'currency' => 'INR',
+        //     'payment_capture' => 1
+        // ]);
+
+        // Store order in database
+        $newOrder = Order::create([
+            'user_id' => auth()->id(),
+            'subscription_id' => $subscription->id,
+            // 'razorpay_order_id' => $order['id'], // Save Razorpay order ID
+            'currency' => 'INR',
+            'amount' => $subscription->price,
+            'status' => 'pending',
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Payment processing failed: ' . $e->getMessage()], 500);
+    }
+}
+
 
 }
