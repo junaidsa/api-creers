@@ -105,7 +105,7 @@ class UtilityController extends Controller
             // 'razorpay_order_id' => $order['id'], // Save Razorpay order ID
             'currency' => 'INR',
             'amount' => $subscription->price,
-            'status' => 'pending',
+            'status' => 1,
         ]);
 
     } catch (\Exception $e) {

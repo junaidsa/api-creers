@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -49,7 +50,27 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+    protected static function boot()
+{
+    parent::boot();
 
+    static::created(function ($user) {
+        if ($user->role === 'recruiter') {
+            $trialPlan = DB::table('subscriptions')->where('name', 'Trial Plan')->first();
+
+            if ($trialPlan) {
+                DB::table('user_subscriptions')->insert([
+                    'user_id' => $user->id,
+                    'subscription_id' => $trialPlan->id,
+                    'start_date' => now(),
+                    'end_date' => now()->addDays($trialPlan->validity_days),
+                    'status' => 'active',
+                    'is_trial' => true
+                ]);
+            }
+        }
+    });
+}
     /**
      * The attributes that should be cast.
      *

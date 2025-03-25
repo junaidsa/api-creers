@@ -9,6 +9,8 @@ use App\Models\Job;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Models\JobApplication;
+use App\Models\Subscription;
+use App\Models\UserSubscription;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
@@ -17,6 +19,21 @@ class JobController extends Controller
     public function store(Request $request)
     {
         try {
+            $userSubscription = UserSubscription::where('user_id', auth()->id())
+            ->where('status', 'active')
+            ->orderBy('user_subscriptions.end_date', 'desc')
+            ->first();
+        if (!$userSubscription) {
+            return $this->json_response('error', 'Active subscription', 'You do not have an active subscription.', 200, $userSubscription);
+        }
+        $subscriptionPlan = Subscription::where('id', $userSubscription->subscription_id)->first();
+
+        if (!$subscriptionPlan) {
+            return $this->json_response('error', 'subscription plan', 'Invalid subscription plan', 200, $subscriptionPlan);
+        }
+        if ($userSubscription->jobs_posted >= $subscriptionPlan->job_postings) {
+            return $this->json_response('error', 'subscription plan', 'You have reached your job posting limit', 200, $subscriptionPlan);
+        }
             $validator = Validator::make($request->all(), [
                 'title' => ['required', 'string', 'max:255'],
                 'description' => ['required', 'string'],
@@ -59,6 +76,7 @@ class JobController extends Controller
                 'experience' => $request->input('experience', null),
                 'benefits' => $request->input('benefits', null),
             ]);
+            $userSubscription->increment('jobs_posted');
             return $this->json_response('success', 'Create Job', 'Job created successfully', 200, $job);
         } catch (\Exception $e) {
             return response()->json([

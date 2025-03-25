@@ -96,6 +96,30 @@ class AuthenticationController extends Controller
         if (!$user) {
             return response()->json(['error' => 'User not found'], 404);
         }
+        $subscription = DB::table('user_subscriptions')
+        ->join('subscriptions', 'user_subscriptions.subscription_id', '=', 'subscriptions.id')
+        ->where('user_subscriptions.user_id', $user->id)
+        ->where('user_subscriptions.status', 'active')
+        ->orderBy('user_subscriptions.end_date', 'desc') // Latest active subscription
+        ->select(
+            'user_subscriptions.id as user_subscription_id',
+            'user_subscriptions.start_date',
+            'user_subscriptions.end_date',
+            'user_subscriptions.status',
+            'user_subscriptions.is_trial',
+            'user_subscriptions.jobs_posted',
+            'user_subscriptions.emailers_used',
+            'user_subscriptions.profile_views_used',
+            'subscriptions.id as subscription_id',
+            'subscriptions.name',
+            'subscriptions.profile_views',
+            'subscriptions.job_postings',
+            'subscriptions.emailers',
+            'subscriptions.validity_days',
+            'subscriptions.price'
+        )
+        ->first(); // Fetch the latest one
+
 
         // Generate Token
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -103,7 +127,8 @@ class AuthenticationController extends Controller
             'status' => 200,
             'message' => 'OTP verified',
             'token' => $token,
-            'user' => $user
+            'user' => $user,
+            'subscriptions' => $subscription
         ], 200);
     }
     public function ProfileUpdate(Request $request){
